@@ -18,5 +18,7 @@ Gem::Specification.new do |s|
   s.require_paths    = ["lib"]
   s.rdoc_options     = ["--charset=UTF-8"]
 
+  s.add_development_dependency 'rake', '>= 7.5.0'
+  s.add_development_dependency 'rspec', '~> 3.1.0'
   s.requirements << 'openoffice, libreoffice or soffice in PATH'
 end
