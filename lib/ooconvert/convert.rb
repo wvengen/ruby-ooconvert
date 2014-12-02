@@ -21,6 +21,7 @@ module OOConvert
     #
     # @param src [String] Filename of source document.
     # @param dst [String] Filename to convert to.
+    # @option options [String] :type File type, one of +text+, +spreadsheet+, +web+, +drawing+, +presentation+ or +formula+ (mandatory option).
     # @option options [String] :format File format or file extension to convert to.
     # @return [String] Filename of converted document.
     def convert(src, dst=nil, options={})
@@ -42,10 +43,14 @@ module OOConvert
     # block ends, so if you need to keep it, make sure to make a copy.
     #
     # @param src [String, File] Filename to convert
+    # @option options [String] :type File type, one of +text+, +spreadsheet+, +web+, +drawing+, +presentation+ or +formula+ (mandatory option).
     # @option options [String] :format File format or file extension to convert to (mandatory option).
     def convert_to_tmp(src, options={})
       unless options[:format] && options[:format] != ''
         raise ArgumentError.new('Please specify format')
+      end
+      unless options[:type] && options[:type] != ''
+        raise ArgumentError.new('Please specify a type')
       end
       src = src.path if src.is_a? File
       Dir.mktmpdir do |tmpdir|
@@ -54,8 +59,8 @@ module OOConvert
         begin
           FileUtils.copy_file(src, tmpsrc)
           # convert, figure out new filename and call block
-          format = Filters.filter_spec(options) or raise ArgumentError.new('Format or extension not recognised')
-          convert_to_dir tmpsrc, tmpdir, format
+          outformat = Filters.filter_spec_out(options) or raise ArgumentError.new('Format or extension not recognised')
+          convert_to_dir tmpsrc, tmpdir, nil, outformat
           tmpdst = Dir.entries(tmpdir).reject{|f| ['.', '..', File.basename(tmpsrc)].include? f }.first
           tmpdst or raise ConversionFailedException
           tmpdst = File.join(tmpdir, tmpdst)
@@ -72,9 +77,11 @@ module OOConvert
     protected
 
     # Convert to a specified directory
-    def convert_to_dir(src, dstdir, format)
-      # TODO quote
-      %x(#{office_bin} --headless --nolockcheck --convert-to '#{format}' '#{src}' --outdir '#{dstdir}' >/dev/null)
+    def convert_to_dir(src, dstdir, infilter, outformat)
+      args = ['--headless', '--nolockcheck', '--convert-to', outformat, '--outdir', dstdir]
+      args += ['--infilter', infilter] if infilter
+      devnull = File.open(File::NULL, 'w')
+      Process.wait Process.spawn(office_bin, *args, src, out: devnull)
     end
 
   end
